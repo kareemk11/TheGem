@@ -1,10 +1,10 @@
 from datetime import timedelta
+from decimal import Decimal
 from django.utils import timezone
 
 from django.db import models
 from django.db.models import Count
 # Create your models here.
-# need to add validation for balance to be non-negative and also add a method to update balance when a member makes a payment or uses the gym services.
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
@@ -47,11 +47,11 @@ class Specialization(models.TextChoices):
     CROSSFIT = 'CrossFit', 'CrossFit'
     PILATES = 'Pilates', 'Pilates'
     ZUMBA = 'Zumba', 'Zumba'
+
 class Trainer (MainModel):
 
     name = models.CharField(max_length=225)
     specialization = models.CharField(max_length=50, choices=Specialization.choices)
-
 
     def __str__(self):
         return self.name
@@ -60,7 +60,7 @@ class Trainer (MainModel):
 class GymClassQuerySet(models.QuerySet):
     def trending_classes(self):
     
-        self.annotate(
+        return self.annotate(
             members_count=Count('members')
         ).filter(
             members_count__gt=15
@@ -76,7 +76,7 @@ class GymclassesManager(models.Manager):
 
 class GymClass(MainModel):
     title = models.CharField(max_length=225, choices=Specialization.choices)
-    best_price = models.FloatField(validators=[MinValueValidator(0.0)])
+    best_price = models.DecimalField(validators=[MinValueValidator(0.0)], max_digits=10, decimal_places=2)
     start_date = models.DateField()
     trainer = models.ForeignKey(Trainer, on_delete=models.CASCADE)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
@@ -87,9 +87,9 @@ class GymClass(MainModel):
 
     def apply_discount(self):
         threshold_date = timezone.now().date() + timedelta(days=30)
-        if self.start_date < threshold_date:
+        if self.start_date >= threshold_date:
             raise ValidationError("Not applicable for discount")
-        return self.best_price * .8
+        return self.best_price * Decimal(".8")
     
     def __str__(self):
         return self.title
